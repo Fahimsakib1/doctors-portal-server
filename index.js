@@ -43,9 +43,7 @@ async function run () {
         const bookingsCollection = client.db('doctorsPortal').collection('bookings')
 
         
-        //Use Aggregate to query multiple collection and then merge data
-        
-        //get all the appointment options from database
+        //get all the appointment options from database. And Use Aggregate to query multiple collection and then merge data
         app.get('/appointmentOptions', async(req, res) => {
             const date = req.query.date;
             //console.log(date);
