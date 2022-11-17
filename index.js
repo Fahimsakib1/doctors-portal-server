@@ -65,6 +65,7 @@ function verifyJWT(req, res, next) {
 
 
 async function run() {
+    
     try {
 
         const appointOptionCollection = client.db('doctorsPortal').collection('AppointmentOptions');
@@ -208,37 +209,53 @@ async function run() {
 
 
 
-        //post the registered users information to the database when the user signs up
+        //post the registered users information to the database when the user signs up. If the user is already in database then he will not inserted to database again.. Google sign up korar shomoy jate bar bar user info database er moddhe na jay tar jonno agey theke database er moddhe check kora holo j oi user email ta database er moddhe ache ki na
         app.post('/users', async (req, res) => {
             const user = req.body;
-            console.log(user);
+            console.log("Google Sign In User",user);
+
+            const query = {
+                email: user.email 
+            }
+
+            const findAlreadyUserInDataBase = await usersCollection.find(query).toArray();
+            console.log("User already in database", findAlreadyUserInDataBase.length);
+
+            if (findAlreadyUserInDataBase.length) {
+                const message = 'This User Email Already Exists';
+                return res.send({ acknowledged: false, message });
+            }
 
             //post request er shomoy toArray() korte hoy na
             const result = await usersCollection.insertOne(user);
             res.send(result)
         })
 
+        
+        
         //get all the user from database and show it on the dashboard on client side
-        app.get('/users', async (req, res) => {
-            const query = {};
-            const users = await usersCollection.find(query).toArray();
-            res.send(users);
-        })
-
-
-        // app.get('/users', verifyJWT, async(req, res) =>{
-
-        //     const decodedEmail = req.decoded.email;
-        //     const user = {email: decodedEmail}
-        //     const findUser = await usersCollection.findOne(user);
-        //     if(findUser.role !== 'Admin'){
-        //         return res.status(403).send({message: 'Forbidden  Access', accessToken: {}})
-        //     }
-
+        // app.get('/users', async (req, res) => {
         //     const query = {};
         //     const users = await usersCollection.find(query).toArray();
         //     res.send(users);
         // })
+
+
+        //get all the user from database and verify them and show it on the dashboard on client side
+        app.get('/users', verifyJWT, async(req, res) =>{
+
+            const decodedEmail = req.decoded.email;
+            const user = {email: decodedEmail}
+            const findUser = await usersCollection.findOne(user);
+            
+            if(findUser.role !== 'Admin'){
+                return res.status(403).send({message: 'Forbidden  Access', accessToken: {}})
+            }
+
+            const query = {};
+            const users = await usersCollection.find(query).toArray();
+            res.send(users);
+        })
 
 
 
@@ -290,7 +307,7 @@ async function run() {
             const query = { email: email }
 
             const user = await usersCollection.findOne(query)
-            console.log(user);
+            //console.log(user);
 
             if (user) {
                 const token = jwt.sign({ email }, process.env.ACCESS_TOKEN, { expiresIn: '20d' })
