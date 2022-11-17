@@ -1,5 +1,5 @@
 
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 
 const express = require('express');
 const app = express();
@@ -11,6 +11,9 @@ app.use(cors())
 app.use(express.json())
 
 require('dotenv').config();
+
+//require jwt
+const jwt = require('jsonwebtoken')
 
 //username: docPortal
 //password: hHYphXrdnH6bhlol
@@ -28,11 +31,37 @@ const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology:
 /**
  * app.get('/bookings') => get all the booking data
  * app.get('/bookings/:id') => get a specific booking data
- * app.post('/bookings') => post data to booking collection
+ * app.post('/bookings') => post data to booking collection.. Post er shomoy toArray() korte hoy na
  * app.patch('/booking/:id') => update a specific data on booking collection based on id
  * app.put('/booking/:id') => => update a specific data on booking collection based on id
  * app.delete('/booking/:id') => => delete a specific data on booking collection based on id
  */
+
+
+//function for verify jwt token
+function verifyJWT (req, res, next){
+    
+    const accessToken = req.headers.authorization;
+    console.log(" Token inside verifyJWT function: ", accessToken)
+
+    const authHeader = req.headers.authorization;
+
+    if(!authHeader){
+        return res.status(401).send('Unauthorized Access')
+    }
+
+    const token = authHeader.split(' ')[1];
+
+    jwt.verify(token, process.env.ACCESS_TOKEN, function(error, decoded) {
+        if(error){
+            return res.status(403).send({message: 'Forbidden Access'})
+        }
+        req.decoded = decoded;
+        next();
+    })
+    
+}
+
 
 
 async function run () {
@@ -40,7 +69,9 @@ async function run () {
         
         const appointOptionCollection = client.db('doctorsPortal').collection('AppointmentOptions');
 
-        const bookingsCollection = client.db('doctorsPortal').collection('bookings')
+        const bookingsCollection = client.db('doctorsPortal').collection('bookings');
+
+        const usersCollection = client.db('doctorsPortal').collection('users');
 
         
         //get all the appointment options from database. And Use Aggregate to query multiple collection and then merge data
@@ -151,20 +182,102 @@ async function run () {
             res.send(result);
         })
 
-        app.get('/bookings', async(req, res) => {
+        //get the booking data for specific user email and verify JWT Token
+        app.get('/bookings', verifyJWT, async(req, res) => {
             
             const email = req.query.email;
-            console.log(email)
-            
+            console.log(email);
+
+            const decodedEmail = req.decoded.email;
+
+            if(email !== decodedEmail){
+                return res.status(403).send({message: 'Forbidden  Access'})
+            }
+
             let query = {}
 
             if(email){
                 query = {email}
             }
+            //const query = {email: email}
             const result = await bookingsCollection.find(query).toArray()
+            res.send(result);
+        });
+
+        //post the registered users information to the database when the user signs up
+        app.post('/users', async (req, res) => {
+            const user = req.body;
+            console.log(user);
+
+            //post request er shomoy toArray() korte hoy na
+            const result = await usersCollection.insertOne(user);
+            res.send(result)
+        })
+
+        //get all the user from database and show it on the dashboard on client side
+        app.get('/users', async(req, res) =>{
+            const query = {};
+            const users = await usersCollection.find(query).toArray();
+            res.send(users);
+        })
+
+        
+        //get a specific user  based on user id
+        app.get('/users/admin/:email', async(req, res) => {
+            const email = req.params.email;
+            const query = {email : email};
+            const user = await usersCollection.findOne(query);
+            res.send({isAdmin : user?.role === 'Admin'});
+        })
+
+        
+        //user k update kora and ta re admin roll dewa client side theke
+        app.put('/users/admin/:id', verifyJWT, async(req, res) => {
+            
+            const decodedEmail = req.decoded.email;
+            
+            const user = {email: decodedEmail}
+
+            const findUser = await usersCollection.findOne(user);
+
+            if(findUser.role !== 'Admin'){
+                return res.status(403).send({message: 'Forbidden  Access'})
+            }
+
+            const id = req.params.id;
+            const query = {_id : ObjectId(id)}
+
+            const options = {upsert: true}
+            const updatedDoc = {
+                $set : {
+                    role: 'Admin'
+                }
+            }
+
+            const result = await usersCollection.updateOne(query, updatedDoc, options);
             res.send(result);
         })
 
+
+
+        //generate jwt token when the user is created in the client side
+        app.get('/jwt', async(req, res) => {
+            const email = req.query.email;
+            const query = {email: email}
+            
+            const user = await usersCollection.findOne(query)
+            console.log(user); 
+            
+            if(user){
+                const token = jwt.sign({email}, process.env.ACCESS_TOKEN, {expiresIn: '5h'})
+                
+                return res.send({accessToken: token})
+            }
+            else{
+                return res.status(403).send({accessToken: 'User not Found'})
+            }
+            
+        })
 
     }
     finally{
