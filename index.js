@@ -64,6 +64,9 @@ function verifyJWT(req, res, next) {
 
 
 
+
+
+
 async function run() {
     
     try {
@@ -73,6 +76,27 @@ async function run() {
         const bookingsCollection = client.db('doctorsPortal').collection('bookings');
 
         const usersCollection = client.db('doctorsPortal').collection('users');
+
+        const doctorsCollection = client.db('doctorsPortal').collection('doctors');
+
+
+        //middleware for admin verification.. verifyAdmin should use after verifyJWT function
+        const verifyAdmin = async (req, res, next) => {
+            console.log("Inside verifyAdmin Middleware", req.decoded.email);
+            
+            const decodedEmail = req.decoded.email;
+
+            const user = { email: decodedEmail }
+
+            const findUser = await usersCollection.findOne(user);
+
+            if (findUser.role !== 'Admin') {
+                return res.status(403).send({ message: 'Forbidden  Access' })
+            }
+
+            next();
+        }
+
 
 
         //get all the appointment options from database. And Use Aggregate to query multiple collection and then merge data
@@ -263,7 +287,7 @@ async function run() {
 
 
 
-        //get a specific user  based on user id
+        //get a specific user  based on user id to check he is admin or not.. user admin na hole client side e dashboard er moddhe registered users ei option tai dekhabe na
         app.get('/users/admin/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
@@ -272,7 +296,7 @@ async function run() {
         })
 
 
-        //user k update kora and ta re admin roll dewa client side theke
+        //user k update kora and ta re admin roll dewa client side theke.. Jodi user nije Admin na hoy tahole se onno kauke admin banaite parbe na
         app.put('/users/admin/:id', verifyJWT, async (req, res) => {
 
             const decodedEmail = req.decoded.email;
@@ -298,6 +322,7 @@ async function run() {
             const result = await usersCollection.updateOne(query, updatedDoc, options);
             res.send(result);
         })
+
 
 
 
@@ -328,6 +353,61 @@ async function run() {
             const token = jwt.sign(user, process.env.ACCESS_TOKEN, { expiresIn: '20d' });
             res.send({ token })
         })
+
+
+
+        //Doctor Related API's Starts From Here
+
+
+        //get only the treatment name form appointOptionCollection API for adding a doctor's specialty on Add a Doctor at the client side
+        app.get('/appointmentSpecialty', async(req, res) => {
+            const query = {}
+            const result = await appointOptionCollection.find(query).project({name : 1}).toArray();
+            res.send(result);
+        })
+        
+
+        //post the doctors information (Add a doctor) to database from client side
+        app.post('/doctors',verifyJWT, verifyAdmin, async(req, res) => {
+            const doctor = req.body;
+            console.log(doctor);
+
+            const query = {
+                email: doctor.email
+            }
+
+            const findAlreadyDoctorInDataBase = await doctorsCollection.find(query).toArray();
+            console.log("Doctor already in database", findAlreadyDoctorInDataBase.length);
+
+            if (findAlreadyDoctorInDataBase.length) {
+                const message = 'Doctor Has Already Added';
+                return res.send({ acknowledged: false, message });
+            }
+
+            const result = await doctorsCollection.insertOne(doctor);
+            res.send(result)
+        })
+
+
+
+
+        //get all the doctor's information from database and show it on the manage doctor's page in client side
+        app.get('/doctors', verifyJWT, verifyAdmin , async(req, res) => {
+            const query = {};
+            const doctors = await doctorsCollection.find(query).toArray();
+            res.send(doctors);
+        })
+
+
+        //delete a doctor based on id
+        app.delete('/doctors/:id',verifyJWT , verifyAdmin, async(req, res) => {
+            const id = req.params.id;
+            console.log('Deleting The ID', id);
+            const query = {_id : ObjectId(id)}
+            const result = await doctorsCollection.deleteOne(query);
+            res.send(result)
+        })
+
 
 
 
