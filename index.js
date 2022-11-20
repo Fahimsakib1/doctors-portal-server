@@ -23,7 +23,7 @@ const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
 
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASSWORD}@cluster0.axoxgat.mongodb.net/?retryWrites=true&w=majority`;
-console.log(uri);
+//console.log(uri);
 
 const client = new MongoClient(uri, { useNewUrlParser: true, useUnifiedTopology: true, serverApi: ServerApiVersion.v1 });
 
@@ -237,7 +237,7 @@ async function run() {
 
 
 
-        //post the registered users information to the database when the user signs up. If the user is already in database then he will not inserted to database again.. Google sign up korar shomoy jate bar bar user info database er moddhe na jay tar jonno agey theke database er moddhe check kora holo j oi user email ta database er moddhe ache ki na
+        //post the registered users information to the database when the user signs up. If the user is already in database then he will not inserted to database again.. Google sign up korar shomoy jate bar bar user info database er moddhe na jay tar jonno agey theke database er moddhe check kora holo j oi user email ta database er moddhe agey theke ache ki na
         app.post('/users', async (req, res) => {
             const user = req.body;
             console.log("Google Sign In User",user);
