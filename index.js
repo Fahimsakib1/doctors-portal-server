@@ -84,6 +84,8 @@ async function run() {
 
         const paymentsCollection = client.db('doctorsPortal').collection('payments');
 
+        const reviewsCollection = client.db('doctorsPortal').collection('reviews');
+
 
         //middleware for admin verification.. verifyAdmin should use after verifyJWT function
         const verifyAdmin = async (req, res, next) => {
@@ -465,6 +467,8 @@ async function run() {
 
         })
 
+
+
         //post the payment info for a treatment from client side
         app.post('/payments', async(req, res) => {
             const payment = req.body;
@@ -479,6 +483,31 @@ async function run() {
                 }
             }
             const updateBookingData = await bookingsCollection.updateOne(filter, updatedDoc)
+            res.send(result)
+        })
+
+
+
+        //Added review section for self practice
+        //get all the doctor's information from database to show the doctors name in the review us section of of nav bar of client side
+        app.get('/allDoctors',  async(req, res) => {
+            const query = {};
+            const doctors = await doctorsCollection.find(query).toArray();
+            res.send(doctors);
+        }) 
+
+        //add the reviews to database
+        app.post('/reviews', async(req, res) => {
+            const userReview = req.body;
+            console.log("User Review", userReview)
+            const result = await reviewsCollection.insertOne(userReview);
+            res.send(result)
+        })
+
+        //get all the reviews from database
+        app.get('/reviews', async(req, res) => {
+            const query = {};
+            const result = await reviewsCollection.find(query).toArray();
             res.send(result)
         })
 
