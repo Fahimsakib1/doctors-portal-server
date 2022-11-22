@@ -213,6 +213,7 @@ async function run() {
             const result = await bookingsCollection.insertOne(booking);
             res.send(result);
         })
+        
 
 
         //get the booking data (appointments) for specific user email and verify JWT Token
@@ -293,7 +294,7 @@ async function run() {
 
 
 
-        //get a specific user  based on user id to check he is admin or not.. user admin na hole client side e dashboard er moddhe registered users ei option tai dekhabe na
+        //get a specific user  based on user email to check he is admin or not.. user admin na hole client side e dashboard er moddhe registered users ei option tai dekhabe na
         app.get('/users/admin/:email', async (req, res) => {
             const email = req.params.email;
             const query = { email: email };
